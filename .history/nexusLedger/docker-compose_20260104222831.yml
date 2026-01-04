@@ -47,14 +47,11 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    ports:
-      - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/nexus_ledger
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: admin123
       SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8080:8080"

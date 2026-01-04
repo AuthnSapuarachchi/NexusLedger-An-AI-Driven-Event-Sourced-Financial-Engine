@@ -1,6 +1,7 @@
 package com.nexus_ledger.nexusLedger.service.ai;
 
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.stereotype.Service;
@@ -9,16 +10,23 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FraudSentryService {
 
     private final OllamaChatModel chatModel;
+    private final Counter fraudCounter;
+
+    // We use a manual constructor to initialize the Micrometer Counter correctly
+    public FraudSentryService(OllamaChatModel chatModel, MeterRegistry registry) {
+        this.chatModel = chatModel;
+        this.fraudCounter = Counter.builder("ledger.fraud.detected")
+                .description("Number of fraud transactions blocked by AI")
+                .register(registry);
+    }
 
     public boolean isFraudulent(BigDecimal amount, UUID fromId) {
         log.info("AI Sentry analyzing transaction: Account {} moving ${}", fromId, amount);
 
-        // This prompt instructs the AI to act as a Risk Officer
         String prompt = """
             You are a Financial Fraud Detection AI. 
             Analyze this transaction: Account %s is attempting to move $%s.
@@ -29,11 +37,18 @@ public class FraudSentryService {
         try {
             String response = chatModel.call(prompt).trim().toUpperCase();
             log.info("AI Analysis Result: {}", response);
-            return response.contains("FRAUD");
+
+            // LOGIC FIX: Check for fraud, increment counter, THEN return
+            if (response.contains("FRAUD")) {
+                fraudCounter.increment();
+                return true;
+            }
+
+            return false; // It was safe
+
         } catch (Exception e) {
             log.error("AI Sentry offline! Defaulting to Safe Mode: {}", e.getMessage());
-            return false; // Fail-safe: don't block everything if AI is down
+            return false;
         }
     }
-
 }

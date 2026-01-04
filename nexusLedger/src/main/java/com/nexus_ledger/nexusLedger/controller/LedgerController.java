@@ -1,4 +1,4 @@
-package com.nexus_ledger.nexusLedger.service;
+package com.nexus_ledger.nexusLedger.controller;
 
 import com.nexus_ledger.nexusLedger.dto.TransferRequest;
 import com.nexus_ledger.nexusLedger.kafkaTransaction.TransactionProducer;
