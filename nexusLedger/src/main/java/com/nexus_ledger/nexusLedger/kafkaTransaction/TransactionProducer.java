@@ -19,10 +19,11 @@ public class TransactionProducer {
         Map<String, Object> message = new HashMap<>();
         message.put("key", key);
 
-        // This is the "data" map your Consumer is looking for!
         Map<String, Object> data = new HashMap<>();
-        data.put("fromId", request.getFromId().toString());
-        data.put("toId", request.getToId().toString());
+
+        // Using String.valueOf() is safer than .toString() because it handles nulls
+        data.put("fromId", String.valueOf(request.getFromId()));
+        data.put("toId", String.valueOf(request.getToId()));
         data.put("amount", request.getAmount());
 
         message.put("data", data);

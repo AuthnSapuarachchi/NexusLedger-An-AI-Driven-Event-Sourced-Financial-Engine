@@ -134,50 +134,7 @@ function App() {
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <Send size={20}/> New Transfer
           </h2>
-          <form onSubmit={handleTransfer} className="space-x-1 space-y-4">
-              {/* FROM ACCOUNT */}
-              <input 
-                placeholder="From Account UUID" 
-                className="w-full bg-slate-900 border border-slate-700 p-3 rounded"
-                value={formData.fromId} // Add value to make it a controlled component
-                onChange={e => {
-                  setFormData({...formData, fromId: e.target.value});
-                  localStorage.setItem('lastFrom', e.target.value);
-                }}
-                required
-              />
-
-              {/* TO ACCOUNT - Fixed: Now updates toId and saves lastTo */}
-              <input 
-                placeholder="To Account UUID" 
-                className="w-full bg-slate-900 border border-slate-700 p-3 rounded"
-                value={formData.toId} 
-                onChange={e => {
-                  setFormData({...formData, toId: e.target.value});
-                  localStorage.setItem('lastTo', e.target.value);
-                }}
-                required
-              />
-
-              {/* AMOUNT - Fixed: Now updates amount and does not overwrite IDs */}
-              <input 
-                type="number" 
-                placeholder="Amount ($)" 
-                className="w-full bg-slate-900 border border-slate-700 p-3 rounded"
-                value={formData.amount}
-                onChange={e => {
-                  setFormData({...formData, amount: e.target.value});
-                }}
-                required
-              />
-
-              <button 
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded font-bold transition-all disabled:opacity-50"
-              >
-                {loading ? "Processing..." : "Execute via Kafka"}
-              </button>
-            </form>
+          
         </section>
 
         {/* AUDIT LOG SECTION */}

@@ -20,22 +20,24 @@ public class LedgerController {
     private final IdempotencyRepository idempotencyRepo;
 
     @PostMapping("/transfer")
-    public ResponseEntity<String> transfer(
+    public ResponseEntity<?> transfer(
             @RequestHeader("X-Idempotency-Key") String key,
             @RequestBody TransferRequest request) {
 
-        // 1. Validate the request briefly (Industry best practice)
-        if (request.getAmount().doubleValue() <= 0) {
-            return ResponseEntity.badRequest().body("{\"error\": \"Amount must be positive\"}");
+        // LOGGING: See exactly what React is sending
+        System.out.println("Received Request: " + request);
+
+        // GUARD CLUASE: Prevent the NullPointerException
+        if (request == null || request.getFromId() == null || request.getToId() == null || request.getAmount() == null) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Missing required fields: fromId, toId, or amount\"}");
         }
 
-        // 2. Push the "Intent" to Kafka
-        // This is non-blocking and extremely fast.
-        transactionProducer.sendTransaction(request, key);
-
-        // 3. Return 202 Accepted
-        // We tell the user "We got it and are working on it."
-        return ResponseEntity.accepted().body("{\"message\": \"Transaction queued for processing\", \"idempotencyKey\": \"" + key + "\"}");
+        try {
+            transactionProducer.sendTransaction(request, key);
+            return ResponseEntity.accepted().body("{\"message\": \"Transaction queued\"}");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
     }
 
     @GetMapping("/history")

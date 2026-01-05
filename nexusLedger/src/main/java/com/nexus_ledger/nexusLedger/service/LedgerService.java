@@ -24,20 +24,37 @@ public class LedgerService {
 
     @Transactional
     public void executeTransfer(UUID fromId, UUID toId, BigDecimal amount, String ref) {
-        // 1. Validation
-        Account from = accountRepo.findById(fromId).orElseThrow();
-        if (from.getBalance().compareTo(amount) < 0) throw new RuntimeException("Insufficient Funds");
+        // 1. Validation - Fetch both accounts safely
+        Account from = accountRepo.findById(fromId)
+                .orElseThrow(() -> new RuntimeException("Sender account not found: " + fromId));
 
-        // 2. Create Header
-        Transaction tx = txRepo.save(new Transaction(UUID.randomUUID(), "Transfer", ref, LocalDateTime.now()));
+        Account to = accountRepo.findById(toId)
+                .orElseThrow(() -> new RuntimeException("Receiver account not found: " + toId));
 
-        // 3. Double-Entry Legs
+        // 2. Check Funds
+        if (from.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient Funds in account: " + fromId);
+        }
+
+        // 3. Create Transaction Header
+        Transaction tx = new Transaction();
+        tx.setId(UUID.randomUUID());
+        tx.setDescription("TRANSFER"); // Maps to your 'description' field
+        tx.setReferenceId(ref);        // Maps to your 'referenceId' field
+        // Note: createdAt is already initialized to LocalDateTime.now() in your Entity
+        tx = txRepo.save(tx);
+
+        // 4. Double-Entry Legs (Atomic Persistence)
+        // Debit the Sender
         journalRepo.save(new JournalEntry(null, tx, fromId, amount.negate()));
+        // Credit the Receiver
         journalRepo.save(new JournalEntry(null, tx, toId, amount));
 
-        // 4. Update Balances (Atomic)
+        // 5. Update Balances (Using your Repository's atomic update)
         accountRepo.updateBalance(fromId, amount.negate());
         accountRepo.updateBalance(toId, amount);
+
+        System.out.println("Successfully moved $" + amount + " from " + fromId + " to " + toId);
     }
 
 }
