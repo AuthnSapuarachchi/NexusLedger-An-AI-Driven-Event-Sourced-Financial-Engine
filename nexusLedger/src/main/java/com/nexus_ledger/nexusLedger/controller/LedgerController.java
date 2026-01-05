@@ -2,16 +2,22 @@ package com.nexus_ledger.nexusLedger.controller;
 
 import com.nexus_ledger.nexusLedger.dto.TransferRequest;
 import com.nexus_ledger.nexusLedger.kafkaTransaction.TransactionProducer;
+import com.nexus_ledger.nexusLedger.module.IdempotencyRecord;
+import com.nexus_ledger.nexusLedger.repository.IdempotencyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/ledger")
 @RequiredArgsConstructor
 public class LedgerController {
 
     private final TransactionProducer transactionProducer;
+    private final IdempotencyRepository idempotencyRepo;
 
     @PostMapping("/transfer")
     public ResponseEntity<String> transfer(
@@ -30,6 +36,12 @@ public class LedgerController {
         // 3. Return 202 Accepted
         // We tell the user "We got it and are working on it."
         return ResponseEntity.accepted().body("{\"message\": \"Transaction queued for processing\", \"idempotencyKey\": \"" + key + "\"}");
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<IdempotencyRecord>> getHistory() {
+        // We return the records so the frontend can see SUCCESS vs FRAUD
+        return ResponseEntity.ok(idempotencyRepo.findAll());
     }
 
 }

@@ -15,13 +15,19 @@ public class TransactionProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final String TOPIC = "financial-transactions";
 
-    public void sendTransaction(TransferRequest request, String idempotencyKey) {
-        // We send the whole request + the key
+    public void sendTransaction(TransferRequest request, String key) {
         Map<String, Object> message = new HashMap<>();
-        message.put("data", request);
-        message.put("key", idempotencyKey);
+        message.put("key", key);
 
-        kafkaTemplate.send(TOPIC, idempotencyKey, message);
+        // This is the "data" map your Consumer is looking for!
+        Map<String, Object> data = new HashMap<>();
+        data.put("fromId", request.getFromId().toString());
+        data.put("toId", request.getToId().toString());
+        data.put("amount", request.getAmount());
+
+        message.put("data", data);
+
+        kafkaTemplate.send("financial-transactions", key, message);
     }
 
 }
