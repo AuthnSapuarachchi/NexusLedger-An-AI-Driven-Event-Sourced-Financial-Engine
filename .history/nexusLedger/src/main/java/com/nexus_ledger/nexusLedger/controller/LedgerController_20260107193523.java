@@ -33,8 +33,7 @@ public class LedgerController {
             @AuthenticationPrincipal OAuth2User principal) {
 
         // 1. Log the incoming data
-        System.out.println("DEBUG: Key=" + key + " | From=" + request.getFromId() + " | To=" + request.getToId()
-                + " | Amt=" + request.getAmount());
+        System.out.println("DEBUG: Key=" + key + " | From=" + request.getFromId() + " | To=" + request.getToId() + " | Amt=" + request.getAmount());
 
         String githubId = principal.getAttribute("id").toString();
         User currentUser = userRepository.findByGithubId(githubId)

@@ -157,7 +157,7 @@ const Dashboard = () => {
     try {
         console.log("Logging out...");
         // Call backend logout with credentials
-        await axios.post('http://localhost:8080/api/user/logout', {}, { 
+        await axios.post('http://localhost:8080/api/logout', {}, { 
           withCredentials: true 
         });
         

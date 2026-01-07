@@ -1,6 +1,8 @@
 package com.nexus_ledger.nexusLedger.kafkaTransaction;
 
+import com.nexus_ledger.nexusLedger.module.Account;
 import com.nexus_ledger.nexusLedger.module.IdempotencyRecord;
+import com.nexus_ledger.nexusLedger.repository.AccountRepository;
 import com.nexus_ledger.nexusLedger.repository.IdempotencyRepository;
 import com.nexus_ledger.nexusLedger.service.LedgerService;
 import com.nexus_ledger.nexusLedger.service.ai.FraudSentryService; // Import the AI Service
@@ -15,15 +17,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class TransactionConsumer {
 
     private final LedgerService ledgerService;
     private final IdempotencyRepository idempotencyRepo;
     private final FraudSentryService fraudSentryService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AccountRepository accountRepository; // Need this to fetch new balance
 
     @KafkaListener(topics = "financial-transactions", groupId = "ledger-group")
     public void consume(Map<String, Object> message) {
@@ -32,14 +35,12 @@ public class TransactionConsumer {
 
         log.info("Processing transaction for key: {}", key);
 
-        // 1. IDEMPOTENCY CHECK
         if (idempotencyRepo.existsById(key)) {
             log.warn("Duplicate transaction detected for key: {}. Skipping...", key);
             return;
         }
 
         try {
-            // Extract data
             BigDecimal amount = new BigDecimal(data.get("amount").toString());
             UUID fromId = UUID.fromString(data.get("fromId").toString());
             UUID toId = UUID.fromString(data.get("toId").toString());
@@ -48,53 +49,59 @@ public class TransactionConsumer {
             boolean isFraud = fraudSentryService.isFraudulent(amount, fromId);
 
             if (isFraud) {
-                log.error("!!! FRAUD ALERT !!! AI blocked transaction {} for amount ${}", key, amount);
-
-                // Save record with full data for history
+                log.error("!!! FRAUD ALERT !!! AI blocked transaction {}", key);
                 saveIdempotencyRecord(key, "BLOCKED_BY_AI", 403, fromId, toId, amount);
 
-                // Notify UI of FRAUD
-                sendWsUpdate(key, "FRAUD", amount);
+                // NOTIFY UI: Fraud status (Balance won't change)
+                sendWsUpdate(fromId, "FRAUD", amount, null);
                 return;
             }
 
-            // 3. EXECUTE LEDGER
+            // 3. EXECUTE LEDGER (Balance changes here)
             ledgerService.executeTransfer(fromId, toId, amount, key);
 
-            // 4. SAVE SUCCESS RECORD
+            // 4. FETCH NEW BALANCE
+            // We fetch the new balance directly from DB to ensure accuracy
+            BigDecimal newBalance = accountRepository.findById(fromId)
+                    .map(Account::getBalance)
+                    .orElse(BigDecimal.ZERO);
+
+            // 5. SAVE SUCCESS RECORD
             saveIdempotencyRecord(key, "SUCCESS", 200, fromId, toId, amount);
 
-            // Notify UI of SUCCESS
-            sendWsUpdate(key, "SUCCESS", amount);
+            // 6. NOTIFY UI: Success status + New Balance
+            sendWsUpdate(fromId, "SUCCESS", amount, newBalance);
 
-            log.info("Transaction {} processed successfully.", key);
+            log.info("Transaction {} processed. New Balance: {}", key, newBalance);
 
         } catch (Exception e) {
             log.error("Critical failure processing transaction {}: {}", key, e.getMessage());
-            // Optionally notify UI of ERROR
-            sendWsUpdate(key, "ERROR", BigDecimal.ZERO);
+            // Optionally send an error update
         }
     }
 
-    // Helper to notify React via WebSocket
-    private void sendWsUpdate(String key, String status, BigDecimal amount) {
-        Map<String, Object> update = new HashMap<>();
-        update.put("id", key);
-        update.put("status", status);
-        update.put("amount", amount);
-        messagingTemplate.convertAndSend("/topic/transactions", update);
+    // HELPER METHOD: This sends the actual WebSocket packet
+    private void sendWsUpdate(UUID accountId, String status, BigDecimal amount, BigDecimal newBalance) {
+        String destination = "/topic/updates/" + accountId.toString();
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "TRANSACTION_UPDATE");
+        payload.put("status", status);
+        payload.put("amount", amount);
+        payload.put("newBalance", newBalance); // React will use this to update the UI
+        payload.put("timestamp", System.currentTimeMillis());
+
+        messagingTemplate.convertAndSend(destination, payload);
     }
 
-    // Updated helper method to match your new fields
-    private void saveIdempotencyRecord(String key, String body, int code, UUID from, UUID to, BigDecimal amt) {
+    private void saveIdempotencyRecord(String key, String status, int code, UUID from, UUID to, BigDecimal amt) {
         IdempotencyRecord record = new IdempotencyRecord();
         record.setIdempotencyKey(key);
-        record.setResponseBody(body);
+        record.setResponseBody(status);
         record.setStatusCode(code);
         record.setFromId(from.toString());
         record.setToId(to.toString());
         record.setAmount(amt);
         idempotencyRepo.save(record);
     }
-
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ShieldAlert, CheckCircle, Clock, Send, LogOut } from 'lucide-react';
+import { ShieldAlert, CheckCircle, Clock, Send } from 'lucide-react';
 import Stomp from 'stompjs';
 import SockJS from 'sockjs-client/dist/sockjs';
 import '../App.css'
@@ -8,55 +8,65 @@ import '../App.css'
 const API_BASE = "http://localhost:8080/api/ledger";
 
 const Dashboard = () => {
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     fromId: '',
     toId: localStorage.getItem('lastTo') || '',
-    amount: ''
-  });
+    amount: '' });
   const [transactions, setTransactions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [historyError, setHistoryError] = useState(null);
 
-  // --- 1. FUNCTION: Fetch History from Database ---
-  const fetchHistory = async () => {
-    try {
-      console.log("Fetching transaction history...");
-      const res = await axios.get(`${API_BASE}/history`, { withCredentials: true });
-      console.log("Raw history response:", res.data);
-      
-      if (!res.data || res.data.length === 0) {
-        console.log("No transaction history found");
-        setTransactions([]);
+  const handleTransfer = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const idKey = `web-tx-${Date.now()}`;
+
+    // 1. Ensure amount is a valid number and greater than 0
+    const amt = parseFloat(formData.amount);
+    if (isNaN(amt) || amt <= 0) {
+        alert("Please enter a valid amount");
+        setSubmitting(false);
         return;
-      }
-      
-      const history = res.data.map(record => {
-        console.log("Processing record:", record);
-        return {
-          id: record.idempotencyKey || record.id,
-          status: record.statusCode === 200 ? 'SUCCESS' : 
-                  record.statusCode === 403 ? 'FRAUD' : 'ERROR',
-          amount: record.amount,
-          fromId: record.fromId,
-          toId: record.toId
-        };
-      });
-      
-      console.log("Processed history:", history);
-      setTransactions(history);
-      setHistoryError(null);
-    } catch (err) {
-      console.error("Could not load history", err);
-      console.error("Error details:", err.response?.data);
-      setHistoryError(err.response?.data?.message || "Failed to load transaction history");
     }
-  };
 
-  // --- 2. EFFECT: Initial Login & User Load ---
+    const payload = {
+        fromId: String(formData.fromId).trim(),
+        toId: String(formData.toId).trim(),
+        amount: amt
+    };
+
+    console.log("Sending Payload:", payload);
+
+    try {
+        const res = await axios.post(`${API_BASE}/transfer`, payload, {
+            headers: { 'X-Idempotency-Key': idKey }
+        });
+
+        const newTx = { 
+            id: idKey, 
+            ...payload, 
+            status: 'QUEUED', 
+            message: res.data.message 
+        };
+        
+        setTransactions([newTx, ...transactions]);
+        alert("Transaction Sent to Kafka!");
+    } catch (err) {
+        // 2. BETTER ERROR HANDLING: Check for both 'message' and 'error' keys
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || "Connection Error";
+        console.error("Server Error Response:", err.response?.data);
+        alert("Error: " + errorMessage);
+    } finally {
+        setSubmitting(false);
+    }
+};
+
+  // Fetch user data on component mount
   useEffect(() => {
-    axios.get('http://localhost:8080/api/user/me', { withCredentials: true })
+    axios.get('http://localhost:8080/api/user/me')
       .then(response => {
         setUser(response.data);
         setFormData(prev => ({ ...prev, fromId: response.data.accountId }));
@@ -68,84 +78,69 @@ const Dashboard = () => {
       });
   }, []);
 
-  // --- 3. EFFECT: WebSocket & History Load ---
   useEffect(() => {
-    if (!user || !user.accountId) return;
+    if (!user) return; // Wait until user is loaded
 
-    // Load history once user is confirmed
-    fetchHistory();
-
-    // Setup WebSocket
     const socket = new SockJS('http://localhost:8080/ws-ledger');
     const client = Stomp.over(socket);
-    client.debug = () => {}; // Silence logs
+    client.debug = () => {}; 
 
-    client.connect({}, () => {
-      console.log("Connected to WebSocket");
-
-      // SUBSCRIBE: Balance Updates (Match the type from your Java Consumer)
-      client.subscribe(`/topic/updates/${user.accountId}`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log("Received WS Update:", data);
-
-        // Update Balance
-        if (data.newBalance !== null && data.newBalance !== undefined) {
-          setUser(prev => ({ ...prev, balance: data.newBalance }));
+    // 1. Fetch History from Database
+    const fetchHistory = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/history`);
+            const history = res.data.map(record => ({
+                id: record.idempotencyKey,
+                status: record.statusCode === 200 ? 'SUCCESS' : 
+                        record.statusCode === 403 ? 'FRAUD' : 'ERROR',
+                amount: record.amount, // Now pulling actual number
+                fromId: record.fromId, // Now pulling actual UUID
+                toId: record.toId
+            }));
+            setTransactions(history);
+        } catch (err) {
+            console.error("Could not load history", err);
         }
-        
-        // Refresh the table to show the new SUCCESS/FRAUD record
-        fetchHistory();
-      });
+    };
+
+    fetchHistory();
+    
+    // 2. Connect WebSocket for Real-time Updates
+    client.connect({}, () => {
+        console.log("Connected to WebSocket");
+        client.subscribe('/topic/transactions', (message) => {
+            const updatedTx = JSON.parse(message.body);
+            
+            setTransactions(prev => {
+                // Check if this transaction is already in our list
+                const exists = prev.find(tx => tx.id === updatedTx.id);
+                
+                if (exists) {
+                    // Update existing transaction status
+                    return prev.map(tx => 
+                        tx.id === updatedTx.id ? { ...tx, status: updatedTx.status } : tx
+                    );
+                } else {
+                    // It's a brand new transaction, add it to the top!
+                    return [{
+                        id: updatedTx.id,
+                        status: updatedTx.status,
+                        amount: updatedTx.amount,
+                        fromId: updatedTx.fromId || 'New Transaction'
+                    }, ...prev];
+                }
+            });
+        });
     }, (err) => {
-      console.error("STOMP error", err);
+        console.error("STOMP error", err);
     });
 
     return () => {
-      if (client.connected) client.disconnect();
+        if (client && client.connected) {
+            client.disconnect();
+        }
     };
-  }, [user?.accountId]); // Only re-run if accountId changes
-
-  // --- 4. FUNCTION: Handle Transfer ---
-  const handleTransfer = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    const idKey = `web-tx-${Date.now()}`;
-    const amt = parseFloat(formData.amount);
-
-    if (isNaN(amt) || amt <= 0) {
-      alert("Please enter a valid amount");
-      setSubmitting(false);
-      return;
-    }
-
-    const payload = {
-      fromId: String(formData.fromId).trim(),
-      toId: String(formData.toId).trim(),
-      amount: amt
-    };
-
-    try {
-      const res = await axios.post(`${API_BASE}/transfer`, payload, {
-        headers: { 'X-Idempotency-Key': idKey },
-        withCredentials: true
-      });
-
-      // Optimistic Update: Add to UI as QUEUED
-      const newTx = { 
-        id: idKey, 
-        ...payload, 
-        status: 'QUEUED' 
-      };
-      setTransactions(prev => [newTx, ...prev]);
-      alert("Transaction Sent to Kafka!");
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || "Connection Error";
-      alert("Error: " + errorMessage);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+}, [user]);
 
   if (loading) return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
@@ -153,49 +148,15 @@ const Dashboard = () => {
     </div>
   );
 
-  const handleLogout = async () => {
-    try {
-        console.log("Logging out...");
-        // Call backend logout with credentials
-        await axios.post('http://localhost:8080/api/user/logout', {}, { 
-          withCredentials: true 
-        });
-        
-        // Clear local storage
-        localStorage.removeItem('lastTo');
-        
-        // Redirect to OAuth login
-        window.location.href = "http://localhost:8080/oauth2/authorization/github";
-    } catch (err) {
-        console.error("Logout failed", err);
-        // Force clear and redirect anyway
-        localStorage.clear();
-        window.location.href = "http://localhost:8080/oauth2/authorization/github";
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8 font-sans">
       <header className="mb-10 flex justify-between items-center border-b border-slate-700 pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-blue-400">
-            NEXUS <span className="text-white">LEDGER</span>
-          </h1>
-          <p className="text-slate-400 mt-1">Welcome back, {user.name}</p>
-        </div>
-        
-        <div className="flex gap-4 items-center">
+        <h1 className="text-3xl font-bold tracking-tight text-blue-400">NEXUS <span className="text-white">LEDGER</span></h1>
+        <div className="flex gap-4">
           <div className="bg-slate-800 p-3 rounded-lg border border-slate-700">
             <p className="text-xs text-slate-400">System Status</p>
             <p className="text-green-400 font-mono">● KAFKA_ONLINE</p>
           </div>
-          
-          <button 
-            onClick={handleLogout}
-            className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all flex items-center gap-2"
-          >
-            <LogOut size={18} /> Logout
-          </button>
         </div>
       </header>
 
@@ -269,19 +230,8 @@ const Dashboard = () => {
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <Clock size={20}/> Live Transaction Audit (Kafka Streams)
           </h2>
-          
-          {historyError && (
-            <div className="bg-red-900/30 border border-red-500 p-4 rounded-lg mb-4">
-              <p className="text-red-400">⚠️ {historyError}</p>
-            </div>
-          )}
-          
           <div className="space-y-4">
-            {transactions.length === 0 && !historyError && (
-              <p className="text-slate-500 italic text-center py-10">
-                No transactions recorded in this session.
-              </p>
-            )}
+            {transactions.length === 0 && <p className="text-slate-500 italic text-center py-10">No transactions recorded in this session.</p>}
             {transactions.map(tx => (
                 <div key={tx.id} className={`bg-slate-900 p-4 rounded-lg border-l-4 flex justify-between items-center ${
                   tx.status === 'SUCCESS' ? 'border-green-500' : 
