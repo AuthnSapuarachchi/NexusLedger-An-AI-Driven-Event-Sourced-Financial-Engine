@@ -23,7 +23,7 @@ const Dashboard = () => {
   const fetchHistory = async () => {
     try {
       console.log("Fetching transaction history...");
-      const res = await axios.get(`${API_BASE}/history`, { withCredentials: true });
+      const res = await axios.get(`${API_BASE}/history`);
       console.log("Raw history response:", res.data);
       
       if (!res.data || res.data.length === 0) {
@@ -127,8 +127,7 @@ const Dashboard = () => {
 
     try {
       const res = await axios.post(`${API_BASE}/transfer`, payload, {
-        headers: { 'X-Idempotency-Key': idKey },
-        withCredentials: true
+        headers: { 'X-Idempotency-Key': idKey }
       });
 
       // Optimistic Update: Add to UI as QUEUED
@@ -157,7 +156,7 @@ const Dashboard = () => {
     try {
         console.log("Logging out...");
         // Call backend logout with credentials
-        await axios.post('http://localhost:8080/api/user/logout', {}, { 
+        await axios.post('http://localhost:8080/api/logout', {}, { 
           withCredentials: true 
         });
         

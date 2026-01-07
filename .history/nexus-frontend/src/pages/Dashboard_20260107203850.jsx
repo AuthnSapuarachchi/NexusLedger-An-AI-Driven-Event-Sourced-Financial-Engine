@@ -23,7 +23,7 @@ const Dashboard = () => {
   const fetchHistory = async () => {
     try {
       console.log("Fetching transaction history...");
-      const res = await axios.get(`${API_BASE}/history`, { withCredentials: true });
+      const res = await axios.get(`${API_BASE}/history`);
       console.log("Raw history response:", res.data);
       
       if (!res.data || res.data.length === 0) {
@@ -56,7 +56,7 @@ const Dashboard = () => {
 
   // --- 2. EFFECT: Initial Login & User Load ---
   useEffect(() => {
-    axios.get('http://localhost:8080/api/user/me', { withCredentials: true })
+    axios.get('http://localhost:8080/api/user/me')
       .then(response => {
         setUser(response.data);
         setFormData(prev => ({ ...prev, fromId: response.data.accountId }));
@@ -127,8 +127,7 @@ const Dashboard = () => {
 
     try {
       const res = await axios.post(`${API_BASE}/transfer`, payload, {
-        headers: { 'X-Idempotency-Key': idKey },
-        withCredentials: true
+        headers: { 'X-Idempotency-Key': idKey }
       });
 
       // Optimistic Update: Add to UI as QUEUED
@@ -155,48 +154,44 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-        console.log("Logging out...");
-        // Call backend logout with credentials
-        await axios.post('http://localhost:8080/api/user/logout', {}, { 
-          withCredentials: true 
-        });
+        // 1. Tell the backend to destroy the session
+        await axios.post('http://localhost:8080/api/logout');
         
-        // Clear local storage
+        // 2. Clear local storage/state
         localStorage.removeItem('lastTo');
         
-        // Redirect to OAuth login
-        window.location.href = "http://localhost:8080/oauth2/authorization/github";
+        // 3. Redirect to the main login trigger
+        window.location.href = "/"; 
     } catch (err) {
         console.error("Logout failed", err);
-        // Force clear and redirect anyway
-        localStorage.clear();
-        window.location.href = "http://localhost:8080/oauth2/authorization/github";
+        // Force redirect anyway to be safe
+        window.location.href = "/";
     }
-  };
+};
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8 font-sans">
       <header className="mb-10 flex justify-between items-center border-b border-slate-700 pb-5">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-blue-400">
-            NEXUS <span className="text-white">LEDGER</span>
-          </h1>
-          <p className="text-slate-400 mt-1">Welcome back, {user.name}</p>
-        </div>
-        
-        <div className="flex gap-4 items-center">
+        <h1 className="text-3xl font-bold tracking-tight text-blue-400">NEXUS <span className="text-white">LEDGER</span></h1>
+        <div className="flex gap-4">
           <div className="bg-slate-800 p-3 rounded-lg border border-slate-700">
             <p className="text-xs text-slate-400">System Status</p>
             <p className="text-green-400 font-mono">● KAFKA_ONLINE</p>
           </div>
-          
-          <button 
-            onClick={handleLogout}
-            className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all flex items-center gap-2"
-          >
-            <LogOut size={18} /> Logout
-          </button>
         </div>
+        <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold">Nexus Ledger Dashboard</h1>
+          <p className="text-slate-400">Welcome back, {user.name}</p>
+        </div>
+        
+        <button 
+          onClick={handleLogout}
+          className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all flex items-center gap-2"
+        >
+          <LogOut size={18} /> Logout
+        </button>
+      </div>
       </header>
 
       {/* User Info Section */}
