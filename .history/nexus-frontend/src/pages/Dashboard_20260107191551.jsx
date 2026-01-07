@@ -17,40 +17,22 @@ const Dashboard = () => {
   });
   const [transactions, setTransactions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [historyError, setHistoryError] = useState(null);
 
   // --- 1. FUNCTION: Fetch History from Database ---
   const fetchHistory = async () => {
     try {
-      console.log("Fetching transaction history...");
       const res = await axios.get(`${API_BASE}/history`);
-      console.log("Raw history response:", res.data);
-      
-      if (!res.data || res.data.length === 0) {
-        console.log("No transaction history found");
-        setTransactions([]);
-        return;
-      }
-      
-      const history = res.data.map(record => {
-        console.log("Processing record:", record);
-        return {
-          id: record.idempotencyKey || record.id,
-          status: record.statusCode === 200 ? 'SUCCESS' : 
-                  record.statusCode === 403 ? 'FRAUD' : 'ERROR',
-          amount: record.amount,
-          fromId: record.fromId,
-          toId: record.toId
-        };
-      });
-      
-      console.log("Processed history:", history);
+      const history = res.data.map(record => ({
+        id: record.idempotencyKey,
+        status: record.statusCode === 200 ? 'SUCCESS' : 
+                record.statusCode === 403 ? 'FRAUD' : 'ERROR',
+        amount: record.amount,
+        fromId: record.fromId,
+        toId: record.toId
+      }));
       setTransactions(history);
-      setHistoryError(null);
     } catch (err) {
       console.error("Could not load history", err);
-      console.error("Error details:", err.response?.data);
-      setHistoryError(err.response?.data?.message || "Failed to load transaction history");
     }
   };
 
@@ -151,7 +133,6 @@ const Dashboard = () => {
       <div className="text-xl">Securing Session...</div>
     </div>
   );
-
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8 font-sans">
       <header className="mb-10 flex justify-between items-center border-b border-slate-700 pb-5">
@@ -234,19 +215,8 @@ const Dashboard = () => {
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <Clock size={20}/> Live Transaction Audit (Kafka Streams)
           </h2>
-          
-          {historyError && (
-            <div className="bg-red-900/30 border border-red-500 p-4 rounded-lg mb-4">
-              <p className="text-red-400">⚠️ {historyError}</p>
-            </div>
-          )}
-          
           <div className="space-y-4">
-            {transactions.length === 0 && !historyError && (
-              <p className="text-slate-500 italic text-center py-10">
-                No transactions recorded in this session.
-              </p>
-            )}
+            {transactions.length === 0 && <p className="text-slate-500 italic text-center py-10">No transactions recorded in this session.</p>}
             {transactions.map(tx => (
                 <div key={tx.id} className={`bg-slate-900 p-4 rounded-lg border-l-4 flex justify-between items-center ${
                   tx.status === 'SUCCESS' ? 'border-green-500' : 

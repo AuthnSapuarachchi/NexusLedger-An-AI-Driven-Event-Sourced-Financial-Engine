@@ -234,19 +234,8 @@ const Dashboard = () => {
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <Clock size={20}/> Live Transaction Audit (Kafka Streams)
           </h2>
-          
-          {historyError && (
-            <div className="bg-red-900/30 border border-red-500 p-4 rounded-lg mb-4">
-              <p className="text-red-400">⚠️ {historyError}</p>
-            </div>
-          )}
-          
           <div className="space-y-4">
-            {transactions.length === 0 && !historyError && (
-              <p className="text-slate-500 italic text-center py-10">
-                No transactions recorded in this session.
-              </p>
-            )}
+            {transactions.length === 0 && <p className="text-slate-500 italic text-center py-10">No transactions recorded in this session.</p>}
             {transactions.map(tx => (
                 <div key={tx.id} className={`bg-slate-900 p-4 rounded-lg border-l-4 flex justify-between items-center ${
                   tx.status === 'SUCCESS' ? 'border-green-500' : 
