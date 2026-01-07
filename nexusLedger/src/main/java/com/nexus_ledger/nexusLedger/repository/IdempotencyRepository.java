@@ -3,4 +3,9 @@ package com.nexus_ledger.nexusLedger.repository;
 import com.nexus_ledger.nexusLedger.module.IdempotencyRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface IdempotencyRepository extends JpaRepository<IdempotencyRecord, String> { }
+import java.util.List;
+import java.util.UUID;
+
+public interface IdempotencyRepository extends JpaRepository<IdempotencyRecord, String> {
+    List<IdempotencyRecord> findByFromId(String fromId);
+}

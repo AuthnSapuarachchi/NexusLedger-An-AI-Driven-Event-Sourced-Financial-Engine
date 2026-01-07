@@ -4,6 +4,7 @@ import com.nexus_ledger.nexusLedger.security.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // Make sure this is imported
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,16 +25,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Link the CORS configuration here
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-
                 .authorizeHttpRequests(auth -> auth
+                        // FIXED SYNTAX: Properly permit OPTIONS and public routes
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/", "/login/**", "/error", "/oauth2/**").permitAll()
-                        .requestMatchers("/api/ledger/**", "/api/user/**").authenticated()
                         .anyRequest().authenticated()
                 )
-
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oauthSuccessHandler)
                 );
@@ -44,16 +43,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // Industry Best Practice: Be explicit with your frontend URL
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        // Allow necessary headers for auth and JSON
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        // Ensure X-Idempotency-Key is included to stop the CORS block
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "X-Idempotency-Key"
+        ));
 
-        // CRITICAL: This allows the browser to save and send the JSESSIONID cookie
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
