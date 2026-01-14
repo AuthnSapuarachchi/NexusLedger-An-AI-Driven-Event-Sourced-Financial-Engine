@@ -14,7 +14,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -40,7 +39,7 @@ public class LedgerController {
         User currentUser = userRepository.findByGithubId(githubId)
                 .orElseThrow(() -> new RuntimeException("User not found in system"));
 
-        // 2. THE FIX: Convert UUID to String for comparison
+        // 2. Convert UUID to String for comparison
         String actualOwnerId = currentUser.getAccount().getId().toString();
         String requestedFromId = request.getFromId();
 
