@@ -4,9 +4,9 @@ server:
 spring:
   # 1. Database Configuration
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://localhost:5432/nexus_ledger
+    username: postgres
+    password: admin
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,13 +20,14 @@ spring:
           github:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope:
               - read:user
               - user:email
 
   # 3. Message Broker (Kafka)
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
