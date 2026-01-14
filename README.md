@@ -1,23 +1,55 @@
-# NexusLedger: AI-Driven Event-Sourced Financial Engine
+# 🏦 NEXUS LEDGER: AI-Powered Event-Driven Financial Engine
 
-NexusLedger is a high-performance, distributed financial ledger built with **Spring Boot**, **Apache Kafka**, and **Local AI (Ollama/Llama 3)**.
+**Nexus Ledger** is a high-integrity FinTech platform built to demonstrate modern distributed systems architecture. It combines **Event Sourcing** via Kafka, **Real-Time Fraud Detection** using local AI, and a responsive **React** interface.
 
-## 🚀 Architecture Highlights
-- **Event-Driven:** Uses Kafka to decouple transaction intake from processing.
-- **AI Fraud Sentry:** Every transaction is analyzed by an integrated LLM before execution.
-- **Double-Entry Integrity:** Ensures mathematical correctness and auditability.
-- **Distributed Idempotency:** Prevents duplicate transactions across a distributed network.
-- **Cloud-Native:** Fully containerized using Docker & Docker Compose.
 
-## 🛠 Tech Stack
-- **Backend:** Java 21, Spring Boot 3.5, Spring AI
-- **Data:** PostgreSQL, Hibernate (JPA)
-- **Messaging:** Apache Kafka (KRaft mode)
-- **AI:** Ollama (Llama 3)
-- **DevOps:** Docker, Micrometer (Actuator)
 
-## 🚦 How to Run
-1. Ensure **Ollama** is running with `llama3`.
-2. Build the app: `./mvnw clean package -DskipTests`
-3. Start the stack: `docker-compose up --build`
-4. Send a transfer via Postman: `POST http://localhost:8080/api/ledger/transfer`
+---
+
+## 🚀 Key Architectural Features
+
+* **Event-Driven Core**: Uses **Apache Kafka** to decouple the API layer from the ledger processing, ensuring high availability and system resilience.
+* **AI Fraud Sentry**: Integrates a local **Llama 3 (via Ollama)** model to perform real-time risk assessment on transactions without compromising data privacy.
+* **Atomic Ledger Logic**: Implements strict **Double-Entry Bookkeeping** with **Optimistic Locking** (`@Version`) to ensure zero data corruption during concurrent transfers.
+* **Real-Time Sync**: Leverages **WebSockets (STOMP)** to push balance updates and AI audit results to the UI instantly.
+* **Reliability**: Built with **Idempotent API** patterns using custom headers to prevent duplicate transactions during network retries.
+
+---
+
+## 🛠️ Technical Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, Tailwind CSS, Axios, Lucide Icons |
+| **Backend** | Spring Boot 3.4+, Spring Security, Spring AI, JPA/Hibernate |
+| **Messaging** | Apache Kafka |
+| **Database** | PostgreSQL 16 |
+| **AI Engine** | Ollama (Running Llama 3) |
+| **Security** | GitHub OAuth2 (JIT Provisioning) |
+
+---
+
+## 🏗️ System Flow
+
+1.  **Request**: User initiates a transfer; the React client generates a unique `X-Idempotency-Key`.
+2.  **Ingestion**: The REST Controller validates the user session and publishes the intent to the `financial-transactions` Kafka topic.
+3.  **Analysis**: The `TransactionConsumer` picks up the message and sends the metadata to the **Llama 3 AI** for a "Safe/Fraud" verdict.
+4.  **Execution**: If cleared, the `LedgerService` executes an atomic SQL transaction to update balances and record journal entries.
+5.  **Feedback**: A WebSocket notification is pushed to the client, triggering a live UI state update.
+
+
+
+---
+
+## 🚥 Getting Started
+
+### 1. Prerequisites
+* Docker & Docker Compose
+* Java 21 (JDK)
+* Node.js & npm
+* Ollama (run `ollama pull llama3`)
+
+### 2. Infrastructure Setup
+```bash
+# Start the supporting services
+docker-compose up -d postgres-db kafka
