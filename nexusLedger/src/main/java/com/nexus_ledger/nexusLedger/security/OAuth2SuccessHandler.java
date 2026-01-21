@@ -54,10 +54,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     newAccount.setAccountNumber("ACC-" + githubId);
                     newAccount.setBalance(new BigDecimal("1000.00"));
 
-                    // --- FIX START: Set the mandatory owner name ---
+                    // Set the mandatory owner name ---
                     newAccount.setOwnerName(finalName);
                     newAccount.setCurrency("USD"); // Added this too just in case it's mandatory
-                    // --- FIX END ---
+
 
                     // 2. Save the Account first
                     Account savedAccount = accountRepo.saveAndFlush(newAccount);
