@@ -8,6 +8,5 @@ import java.util.UUID;
 
 public interface IdempotencyRepository extends JpaRepository<IdempotencyRecord, String> {
     List<IdempotencyRecord> findByFromId(String fromId);
-
     List<IdempotencyRecord> findByFromIdIn(List<String> fromIds);
 }

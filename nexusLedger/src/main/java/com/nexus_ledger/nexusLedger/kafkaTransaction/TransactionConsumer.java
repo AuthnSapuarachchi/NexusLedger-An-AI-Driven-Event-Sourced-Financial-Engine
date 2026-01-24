@@ -26,7 +26,7 @@ public class TransactionConsumer {
     private final IdempotencyRepository idempotencyRepo;
     private final FraudSentryService fraudSentryService;
     private final SimpMessagingTemplate messagingTemplate;
-    private final AccountRepository accountRepository; // Need this to fetch new balance
+    private final AccountRepository accountRepository;
 
     @KafkaListener(topics = "financial-transactions", groupId = "ledger-group")
     public void consume(Map<String, Object> message) {

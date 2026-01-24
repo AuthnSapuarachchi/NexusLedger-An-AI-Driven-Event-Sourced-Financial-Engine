@@ -46,29 +46,31 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 2. Logic to find or create
         User user = userRepo.findByGithubId(githubId)
                 .orElseGet(() -> {
-                    System.out.println("No user found. Provisioning new Identity and Account...");
+                    System.out.println("No user found. Provisioning new Identity and Main Vault...");
 
-                    // 1. Create the Bank Account
-                    Account newAccount = new Account();
-                    newAccount.setId(UUID.randomUUID());
-                    newAccount.setAccountNumber("ACC-" + githubId);
-                    newAccount.setBalance(new BigDecimal("1000.00"));
-
-                    // Set the mandatory owner name ---
-                    newAccount.setOwnerName(finalName);
-                    newAccount.setCurrency("USD"); // Added this too just in case it's mandatory
-
-
-                    // 2. Save the Account first
-                    Account savedAccount = accountRepo.saveAndFlush(newAccount);
-
-                    // 3. Create the User linked to the saved account
+                    // 1. Create the User first (without the account yet)
                     User newUser = new User();
                     newUser.setGithubId(githubId);
                     newUser.setName(finalName);
                     newUser.setEmail(finalEmail);
-                    newUser.setAccount(savedAccount);
 
+                    // 2. Create the first "Main" Vault for this user
+                    Account mainAccount = new Account();
+                    mainAccount.setId(UUID.randomUUID());
+                    mainAccount.setAccountName("Main"); // The vault name
+                    mainAccount.setAccountNumber("ACC-" + githubId);
+                    mainAccount.setBalance(new BigDecimal("1000.00"));
+                    mainAccount.setOwnerName(finalName);
+                    mainAccount.setCurrency("USD");
+
+                    // 3. Link the Account to the User
+                    mainAccount.setOwner(newUser);
+
+                    // 4. Add the Account to the User's list
+                    // This replaces .setAccount(savedAccount)
+                    newUser.getAccounts().add(mainAccount);
+
+                    // 5. Save the User (CascadeType.ALL will save the Account automatically)
                     return userRepo.save(newUser);
                 });
 

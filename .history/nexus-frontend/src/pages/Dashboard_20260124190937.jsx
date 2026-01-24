@@ -268,52 +268,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      {/* Accounts/Vaults Section */}
-      <div className="mb-8 bg-slate-800 p-6 rounded-xl border border-slate-700">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Wallet size={20}/> My Vaults
-          </h2>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {user.accounts && user.accounts.map((account) => (
-            <div 
-              key={account.id} 
-              className="bg-slate-900 p-4 rounded-lg border border-slate-700 hover:border-blue-500 transition-all cursor-pointer"
-              onClick={() => setFormData(prev => ({ ...prev, fromId: account.id }))}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-blue-400">{account.accountName}</h3>
-                <span className="text-xs text-slate-500">{account.currency}</span>
-              </div>
-              <p className="text-xs text-slate-400 font-mono mb-2">{account.accountNumber}</p>
-              <p className="text-2xl font-bold">${account.balance}</p>
-              {formData.fromId === account.id && (
-                <p className="text-xs text-green-400 mt-2">✓ Selected for transfer</p>
-              )}
-            </div>
-          ))}
-        </div>
 
-        {/* Create New Vault Form */}
-        <form onSubmit={handleCreateVault} className="flex gap-2">
-          <input
-            type="text"
-            placeholder="New vault name (e.g., Savings, Business)"
-            value={newVaultName}
-            onChange={(e) => setNewVaultName(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-700 p-3 rounded focus:border-blue-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={creatingVault}
-            className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded font-bold transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            <Plus size={18}/> {creatingVault ? 'Creating...' : 'Create Vault'}
-          </button>
-        </form>
-      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* FORM SECTION */}
         <section className="bg-slate-800 p-6 rounded-xl border border-slate-700 h-fit">

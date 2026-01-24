@@ -20,6 +20,13 @@ public class Account {
     @Column(nullable = false)
     private String ownerName;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User owner;
+
+    @Column(nullable = false)
+    private String accountName;
+
     private BigDecimal balance;
 
     @Column(nullable = false, length = 3)

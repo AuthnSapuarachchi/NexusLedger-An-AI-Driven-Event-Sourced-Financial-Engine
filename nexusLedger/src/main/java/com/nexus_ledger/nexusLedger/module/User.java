@@ -3,6 +3,9 @@ package com.nexus_ledger.nexusLedger.module;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -18,8 +21,7 @@ public class User {
     private String name;
     private String email;
 
-    @OneToOne
-    @JoinColumn(name = "account_id")
-    private Account account;
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Account> accounts = new ArrayList<>();
 
 }

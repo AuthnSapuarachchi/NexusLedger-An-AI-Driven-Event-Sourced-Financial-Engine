@@ -41,7 +41,7 @@ public class LedgerController {
         Account vault = new Account();
         vault.setId(UUID.randomUUID());
         vault.setAccountName(vaultName);
-        vault.setAccountNumber("VLT-" + UUID.randomUUID().toString().substring(0, 8));
+        vault.setAccountNumber("VLT-" + UUID.randomUUID().toString().substring(0,8));
         vault.setOwner(user);
         vault.setBalance(BigDecimal.ZERO);
         vault.setOwnerName(user.getName());
@@ -60,8 +60,7 @@ public class LedgerController {
         User currentUser = userRepository.findByGithubId(githubId)
                 .orElseThrow(() -> new RuntimeException("User not found in system"));
 
-        // --- NEW LOGIC: Verify if the 'fromId' belongs to ANY of the user's accounts
-        // ---
+        // --- NEW LOGIC: Verify if the 'fromId' belongs to ANY of the user's accounts ---
         boolean ownsAccount = currentUser.getAccounts().stream()
                 .anyMatch(acc -> acc.getId().toString().equals(request.getFromId()));
 
